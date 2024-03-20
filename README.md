@@ -21,3 +21,10 @@ Small, simplified version of Python Fractions for Circuitpython. Tested with CP 
 
 ## Bitmaps
 contains blinka images converted from the C source code. 
+
+
+## Decimal
+contains some math on top of jepler-udecimal (https://github.com/jepler/Jepler_CircuitPython_udecimal). umath.py complements hyperbolic and some other functions, and cdmath.py, well, complex decimal math. Abandoned in favor of modifying Circuitpython mainly due to memory consumption but workable. Maybe useful for someone. 
+
+
+
