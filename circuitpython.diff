@@ -1,0 +1,476 @@
+diff --git a/.gitignore b/.gitignore
+index 9cb1e9ea5e..bbf44ac5da 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -91,3 +91,7 @@ TAGS
+ 
+ # Uncrustify formatting
+ *.uncrustify
++
++# local stuff
++**/compile.out 
++
+diff --git a/ports/atmel-samd/Makefile b/ports/atmel-samd/Makefile
+index 92b9f1453a..2c0b7841bd 100644
+--- a/ports/atmel-samd/Makefile
++++ b/ports/atmel-samd/Makefile
+@@ -125,7 +125,11 @@ else
+   endif
+ endif
+ 
+-CFLAGS += $(INC) -Wall -Werror -std=gnu11 -nostdlib -fshort-enums $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) -Werror=missing-prototypes
++CFLAGS += $(INC) -Wall -Werror -std=gnu11 -nostdlib -fshort-enums $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) -Werror=missing-prototypes 
++
++ifneq ($(INTERNAL_LIBM_DBL),1)
++CFLAGS += -Werror
++endif
+ 
+ ifeq ($(CHIP_FAMILY), samd21)
+ CFLAGS += \
+diff --git a/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h b/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h
+index 0744fc3f92..c1ec863a1f 100644
+--- a/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h
++++ b/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h
+@@ -23,3 +23,63 @@
+ // USB is always used internally so skip the pin objects for it.
+ #define IGNORE_PIN_PA24     1
+ #define IGNORE_PIN_PA25     1
++
++/* local additions for double float and complex handling */
++
++/*
++#ifndef MICROPY_CONFIG_ROM_LEVEL
++#define MICROPY_CONFIG_ROM_LEVEL (MICROPY_CONFIG_ROM_LEVEL_EXTRA_FEATURES)
++#endif
++*/
++
++#ifdef MICROPY_FLOAT_IMPL
++#undef MICROPY_FLOAT_IMPL
++#endif
++#define MICROPY_FLOAT_IMPL (MICROPY_FLOAT_IMPL_DOUBLE)
++
++#ifdef MICROPY_OBJ_REPR
++#undef MICROPY_OBJ_REPR
++#endif
++#define MICROPY_OBJ_REPR            (MICROPY_OBJ_REPR_A)
++
++// Whether to provide special math functions: math.{erf,erfc,gamma,lgamma}
++#ifdef MICROPY_PY_MATH_SPECIAL_FUNCTIONS
++#undef MICROPY_PY_MATH_SPECIAL_FUNCTIONS
++#endif
++#define MICROPY_PY_MATH_SPECIAL_FUNCTIONS (1)
++
++// Whether to provide math.factorial function
++#ifdef MICROPY_PY_MATH_FACTORIAL
++#undef MICROPY_PY_MATH_FACTORIAL
++#endif
++#define MICROPY_PY_MATH_FACTORIAL (1)
++
++// Whether to provide math.isclose function
++#ifdef MICROPY_PY_MATH_ISCLOSE
++#undef MICROPY_PY_MATH_ISCLOSE
++#endif
++#define MICROPY_PY_MATH_ISCLOSE (1)
++
++#ifdef MICROPY_PY_CMATH
++#undef MICROPY_PY_CMATH
++#endif
++#define MICROPY_PY_CMATH  (1)
++
++#ifdef ULAB_SUPPORTS_COMPLEX
++#undef ULAB_SUPPORTS_COMPLEX
++#endif
++#define ULAB_SUPPORTS_COMPLEX  (1)
++ 
++#ifdef MICROPY_OPT_MATH_FACTORIAL
++#undef MICROPY_OPT_MATH_FACTORIAL
++#endif
++#define MICROPY_OPT_MATH_FACTORIAL (1)
++
++
++/* does not get resolved ...*/
++// #define ULAB_NUMPY_HAS_LOG2             (0)
++
++
++#pragma GCC diagnostic ignored "-Woverflow"
++
++
+diff --git a/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.mk b/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.mk
+index 377e4f4f0f..f2c3f74a45 100644
+--- a/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.mk
++++ b/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.mk
+@@ -15,6 +15,25 @@ CIRCUITPY_FLOPPYIO = 0
+ CIRCUITPY_SYNTHIO = 0
+ CIRCUITPY_JPEGIO = 0
+ 
++# some more to make room for math
++CIRCUITPY__BLEIO = 0
++CIRCUITPY_AUDIOBUSIO = 0
++CIRCUITPY_AUDIOCORE = 0
++CIRCUITPY_AUDIOIO = 0
++CIRCUITPY_AUDIOMIXER = 0
++CIRCUITPY_AUDIOMP3 = 0
++CIRCUITPY_GETPASS = 0
++CIRCUITPY_GIFIO = 0
++CIRCUITPY_KEYPAD = 0
++CIRCUITPY_ONEWIREIO = 0
++CIRCUITPY_PARALLELDISPLAY = 0
++CIRCUITPY_PS2IO = 0
++CIRCUITPY_ROTARYIO = 0
++CIRCUITPY_SHARPDISPLAY = 0
++CIRCUITPY_USB_MIDI = 0
++CIRCUITPY_ZLIB = 0
++
++
+ # We don't have room for the fonts for terminalio for certain languages,
+ # so turn off terminalio, and if it's off and displayio is on,
+ # force a clean build.
+diff --git a/ports/atmel-samd/mpconfigport.mk b/ports/atmel-samd/mpconfigport.mk
+index 1e18fee5f8..70aa2a7817 100644
+--- a/ports/atmel-samd/mpconfigport.mk
++++ b/ports/atmel-samd/mpconfigport.mk
+@@ -2,7 +2,9 @@
+ # parameters that vary based on chip and/or board.
+ LD_TEMPLATE_FILE = boards/common.template.ld
+ 
+-INTERNAL_LIBM = 1
++INTERNAL_LIBM=
++# INTERNAL_LIBM = 1
++# INTERNAL_LIBM_DBL = 1
+ 
+ # Number of USB endpoint pairs.
+ USB_NUM_ENDPOINT_PAIRS = 8
+diff --git a/ports/raspberrypi/Makefile b/ports/raspberrypi/Makefile
+index 2eb81017b3..1b32c52063 100644
+--- a/ports/raspberrypi/Makefile
++++ b/ports/raspberrypi/Makefile
+@@ -144,6 +144,11 @@ INC += \
+         -I../../supervisor/shared/usb \
+         -I$(BUILD)
+ 
++ifeq ($(INTERNAL_LIBM_DBL),1)
++INC += \
++        -isystem sdk/src/rp2_common/pico_double/include 
++endif
++
+ # Pico specific configuration
+ CFLAGS += -DRASPBERRYPI -DPICO_ON_DEVICE=1 -DPICO_NO_BINARY_INFO=0 -DPICO_TIME_DEFAULT_ALARM_POOL_DISABLED=0 -DPICO_DIVIDER_CALL_IDIV0=0 -DPICO_DIVIDER_CALL_LDIV0=0 -DPICO_DIVIDER_HARDWARE=1 -DPICO_DOUBLE_ROM=1 -DPICO_FLOAT_ROM=1 -DPICO_MULTICORE=1 -DPICO_BITS_IN_RAM=0 -DPICO_DIVIDER_IN_RAM=0 -DPICO_DOUBLE_PROPAGATE_NANS=0 -DPICO_DOUBLE_IN_RAM=0 -DPICO_MEM_IN_RAM=0 -DPICO_FLOAT_IN_RAM=0 -DPICO_FLOAT_PROPAGATE_NANS=1 -DPICO_NO_FLASH=0 -DPICO_COPY_TO_RAM=0 -DPICO_DISABLE_SHARED_IRQ_HANDLERS=0 -DPICO_NO_BI_BOOTSEL_VIA_DOUBLE_RESET=0 -DDVI_1BPP_BIT_REVERSE=0
+ OPTIMIZATION_FLAGS ?= -O3
+@@ -173,7 +178,11 @@ endif
+ # Remove -Wno-stringop-overflow after we can test with CI's GCC 10. Mac's looks weird.
+ DISABLE_WARNINGS = -Wno-stringop-overflow -Wno-cast-align
+ 
+-CFLAGS += $(INC) -Wall -Werror -std=gnu11 -fshort-enums $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) $(DISABLE_WARNINGS) -Werror=missing-prototypes
++CFLAGS += $(INC) -Wall -std=gnu11 -fshort-enums $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) $(DISABLE_WARNINGS) -Werror=missing-prototypes
++
++ifneq ($(INTERNAL_LIBM_DBL),1)
++CFLAGS += -Werror
++endif
+ 
+ CFLAGS += \
+ 	-march=armv6-m \
+@@ -225,14 +234,19 @@ SRC_SDK := \
+ 	src/rp2_common/pico_fix/rp2040_usb_device_enumeration/rp2040_usb_device_enumeration.c \
+ 	src/rp2_common/pico_float/float_init_rom.c \
+ 	src/rp2_common/pico_float/float_math.c \
+-	src/rp2_common/pico_multicore/multicore.c \
++    src/rp2_common/pico_multicore/multicore.c \
+ 	src/rp2_common/pico_platform/platform.c \
+ 	src/rp2_common/pico_printf/printf.c \
+ 	src/rp2_common/pico_runtime/runtime.c \
+ 	src/rp2_common/pico_stdio/stdio.c \
+ 	src/rp2_common/pico_stdlib/stdlib.c \
+ 	src/rp2_common/pico_unique_id/unique_id.c \
+-	$(SRC_SDK_CYW43) \
++	$(SRC_SDK_CYW43) \ 
++
++ifeq ($(INTERNAL_LIBM_DBL),1)
++SRC_SDK += \
++    src/rp2_common/pico_double/double_math.c
++endif			
+ 
+ SRC_SDK := $(addprefix sdk/, $(SRC_SDK))
+ $(patsubst %.c,$(BUILD)/%.o,$(SRC_SDK) $(SRC_CYW43)): CFLAGS += -Wno-missing-prototypes -Wno-undef -Wno-unused-function -Wno-nested-externs -Wno-strict-prototypes -Wno-double-promotion -Wno-sign-compare -Wno-unused-variable -Wno-strict-overflow -Ilib/cyw43-driver
+diff --git a/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.h b/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.h
+index fba7dc3b19..464e528461 100644
+--- a/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.h
++++ b/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.h
+@@ -12,3 +12,59 @@
+ 
+ #define DEFAULT_UART_BUS_RX (&pin_GPIO1)
+ #define DEFAULT_UART_BUS_TX (&pin_GPIO0)
++
++/* local additions for double float and complex handling */
++/*
++#ifdef MICROPY_FLOAT_IMPL
++#undef MICROPY_FLOAT_IMPL
++#endif
++#define MICROPY_FLOAT_IMPL (MICROPY_FLOAT_IMPL_DOUBLE)
++*/
++#ifdef MICROPY_OBJ_REPR
++#undef MICROPY_OBJ_REPR
++#endif
++#define MICROPY_OBJ_REPR            (MICROPY_OBJ_REPR_A)
++
++// Whether to provide special math functions: math.{erf,erfc,gamma,lgamma}
++#ifdef MICROPY_PY_MATH_SPECIAL_FUNCTIONS
++#undef MICROPY_PY_MATH_SPECIAL_FUNCTIONS
++#endif
++#define MICROPY_PY_MATH_SPECIAL_FUNCTIONS (1)
++
++// Whether to provide math.factorial function
++#ifdef MICROPY_PY_MATH_FACTORIAL
++#undef MICROPY_PY_MATH_FACTORIAL
++#endif
++#define MICROPY_PY_MATH_FACTORIAL (1)
++
++// Whether to provide math.isclose function
++#ifdef MICROPY_PY_MATH_ISCLOSE
++#undef MICROPY_PY_MATH_ISCLOSE
++#endif
++#define MICROPY_PY_MATH_ISCLOSE (1)
++
++#ifdef MICROPY_PY_CMATH
++#undef MICROPY_PY_CMATH
++#endif
++#define MICROPY_PY_CMATH  (1)
++
++#ifdef ULAB_SUPPORTS_COMPLEX
++#undef ULAB_SUPPORTS_COMPLEX
++#endif
++#define ULAB_SUPPORTS_COMPLEX  (1)
++ 
++#ifdef MICROPY_OPT_MATH_FACTORIAL
++#undef MICROPY_OPT_MATH_FACTORIAL
++#endif
++#define MICROPY_OPT_MATH_FACTORIAL (1)
++
++
++/* does not get resolved ...*/
++// #define ULAB_NUMPY_HAS_LOG2             (0)
++
++/* to avoid sha256 symbols collision between cryptolib and modhashlib. 
++   We don't need it anyway. 
++*/
++// #define MICROPY_PY_HASHLIB_SHA256 (0)
++
++
+diff --git a/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.mk b/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.mk
+index c77d2d2c13..7cd709114b 100644
+--- a/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.mk
++++ b/ports/raspberrypi/boards/adafruit_feather_rp2040/mpconfigboard.mk
+@@ -7,3 +7,4 @@ CHIP_VARIANT = RP2040
+ CHIP_FAMILY = rp2
+ 
+ EXTERNAL_FLASH_DEVICES = "GD25Q64C,W25Q64JVxQ"
++
+diff --git a/ports/raspberrypi/mpconfigport.mk b/ports/raspberrypi/mpconfigport.mk
+index e44d75bf05..5cd1c277db 100644
+--- a/ports/raspberrypi/mpconfigport.mk
++++ b/ports/raspberrypi/mpconfigport.mk
+@@ -46,7 +46,8 @@ CIRCUITPY_AUDIOPWMIO ?= 1
+ 
+ CIRCUITPY_AUDIOMIXER ?= 1
+ 
+-INTERNAL_LIBM = 1
++INTERNAL_LIBM=
++#INTERNAL_LIBM_DBL = 1
+ 
+ CIRCUITPY_BUILD_EXTENSIONS ?= uf2
+ 
+diff --git a/py/circuitpy_defns.mk b/py/circuitpy_defns.mk
+index 62acd69ae1..d3bfeafcc9 100644
+--- a/py/circuitpy_defns.mk
++++ b/py/circuitpy_defns.mk
+@@ -28,14 +28,11 @@
+ # Common compile warnings.
+ 
+ BASE_CFLAGS = \
+-	-fsingle-precision-constant \
+ 	-fno-strict-aliasing \
+-	-Wdouble-promotion \
+ 	-Wimplicit-fallthrough=2 \
+ 	-Wno-endif-labels \
+ 	-Wstrict-prototypes \
+ 	-Werror-implicit-function-declaration \
+-	-Wfloat-equal \
+ 	-Wundef \
+ 	-Wshadow \
+ 	-Wwrite-strings \
+@@ -58,6 +55,19 @@ BASE_CFLAGS = \
+ #        -ftime-report
+ #        -H
+ 
++# only if we do not build _DOUBLE
++# and even then ... 
++# by the way this makes all these hardcoded f's redundant
++# they should all be thrown out the window. 
++ifdef INTERNAL_LIBM 
++ifndef INTERNAL_LIBM_DBL
++BASE_CFLAGS += \
++	-fsingle-precision-constant \
++	-Wdouble-promotion \
++	-Wfloat-equal 
++endif
++endif
++
+ # Micropython's implementation of <string.h> routines is incompatible with
+ # "fortify source", enabled by default on gentoo's crossdev arm-none-eabi-gcc
+ # gcc version 12.3.1 20230526 (Gentoo 12.3.1_p20230526 p2). Unconditionally disable it.
+@@ -874,6 +884,60 @@ endif
+ $(patsubst %.c,$(BUILD)/%.o,$(SRC_LIBM)): CFLAGS += -Wno-missing-prototypes
+ endif
+ 
++# and if INTERNAL_LIBM_DBL == 1, we also include the libm/libm_dbl objects. 
++ifeq ($(INTERNAL_LIBM_DBL),1)
++SRC_LIBM += \
++$(addprefix lib/,\
++	libm_dbl/acos.c \
++	libm_dbl/acosh.c \
++	libm_dbl/asin.c \
++	libm_dbl/asinh.c \
++	libm_dbl/atan2.c \
++	libm_dbl/atan.c \
++	libm_dbl/atanh.c \
++	libm_dbl/ceil.c \
++	libm_dbl/copysign.c \
++	libm_dbl/__cos.c \
++	libm_dbl/cos.c \
++	libm_dbl/cosh.c \
++	libm_dbl/erf.c \
++	libm_dbl/exp.c \
++	libm_dbl/expm1.c \
++	libm_dbl/__expo2.c \
++	libm_dbl/floor.c \
++	libm_dbl/fmod.c \
++	libm_dbl/__fpclassify.c \
++	libm_dbl/frexp.c \
++	libm_dbl/ldexp.c \
++	libm_dbl/lgamma.c \
++	libm_dbl/log10.c \
++	libm_dbl/log1p.c \
++	libm_dbl/log.c \
++	libm_dbl/modf.c \
++	libm_dbl/nearbyint.c \
++	libm_dbl/pow.c \
++	libm_dbl/__rem_pio2.c \
++	libm_dbl/__rem_pio2_large.c \
++	libm_dbl/rint.c \
++	libm_dbl/round.c \
++	libm_dbl/scalbn.c \
++	libm_dbl/__signbit.c \
++	libm_dbl/__sin.c \
++	libm_dbl/sin.c \
++	libm_dbl/sinh.c \
++	libm_dbl/sqrt.c \
++	libm_dbl/__tan.c \
++	libm_dbl/tan.c \
++	libm_dbl/tanh.c \
++	libm_dbl/tgamma.c \
++	libm_dbl/trunc.c \
++	)
++# we include the special functions without ULAB. 
++endif # INTERNAL_LIBM == 2
++
++	# libm_dbl/thumb_vfp_sqrt.c \
++
++
+ # Sources used in all ports except unix.
+ SRC_CIRCUITPY_COMMON = \
+ 	shared/libc/string0.c \
+diff --git a/py/circuitpy_mpconfig.h b/py/circuitpy_mpconfig.h
+index 9867b97c97..065dd09378 100644
+--- a/py/circuitpy_mpconfig.h
++++ b/py/circuitpy_mpconfig.h
+@@ -368,7 +368,7 @@ extern const struct _mp_obj_module_t nvm_module;
+ #endif
+ 
+ #ifndef ULAB_SUPPORTS_COMPLEX
+-#define ULAB_SUPPORTS_COMPLEX (0)
++#define ULAB_SUPPORTS_COMPLEX (1)
+ #endif
+ 
+ #if CIRCUITPY_ULAB
+diff --git a/py/obj.h b/py/obj.h
+index 4ddf30115d..3244b98d10 100644
+--- a/py/obj.h
++++ b/py/obj.h
+@@ -194,7 +194,9 @@ static inline bool mp_obj_is_small_int(mp_const_obj_t o) {
+ 
+ static inline bool mp_obj_is_float(mp_const_obj_t o) {
+     // Ensure that 32-bit arch can only use single precision.
++#if MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_FLOAT
+     MP_STATIC_ASSERT(sizeof(mp_float_t) <= sizeof(mp_obj_t));
++#endif	
+ 
+     return (((mp_uint_t)(o)) & 3) == 2 && (((mp_uint_t)(o)) & 0xff800007) != 0x00000006;
+ }
+diff --git a/shared-bindings/rgbmatrix/RGBMatrix.c b/shared-bindings/rgbmatrix/RGBMatrix.c
+index 4f47ef3814..b36b593514 100644
+--- a/shared-bindings/rgbmatrix/RGBMatrix.c
++++ b/shared-bindings/rgbmatrix/RGBMatrix.c
+@@ -390,7 +390,11 @@ STATIC void rgbmatrix_rgbmatrix_deinit_proto(mp_obj_t self_in) {
+     common_hal_rgbmatrix_rgbmatrix_deinit(self_in);
+ }
+ 
++#if MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_DOUBLE
++STATIC double rgbmatrix_rgbmatrix_get_brightness_proto(mp_obj_t self_in) {
++#else		
+ STATIC float rgbmatrix_rgbmatrix_get_brightness_proto(mp_obj_t self_in) {
++#endif		
+     return common_hal_rgbmatrix_rgbmatrix_get_paused(self_in) ? 0.0f : 1.0f;
+ }
+ 
+diff --git a/tools/gen_display_resources.py b/tools/gen_display_resources.py
+index 350988bab0..6f4c9791b8 100644
+--- a/tools/gen_display_resources.py
++++ b/tools/gen_display_resources.py
+@@ -286,7 +286,7 @@ displayio_tilegrid_t supervisor_terminal_scroll_area_text_grid = {{
+     .in_group = true
+ }};
+ """.format(
+-        len(all_characters), tile_x, tile_y
++        len(all_characters) * 2, tile_x, tile_y
+     )
+ )
+ 
+@@ -316,7 +316,7 @@ displayio_tilegrid_t supervisor_terminal_status_bar_text_grid = {{
+     .in_group = true
+ }};
+ """.format(
+-        len(all_characters), tile_x, tile_y
++        len(all_characters) * 2, tile_x, tile_y
+     )
+ )
+ 
+@@ -324,14 +324,19 @@ c_file.write(
+     """\
+ const uint32_t font_bitmap_data[{}] = {{
+ """.format(
+-        bytes_per_row * tile_y // 4
++        bytes_per_row * tile_y // 4 * 2
+     )
+ )
+ 
++# for each 18 words written, add another 18 words with inverted data. 
++extras = ""
+ for i, word in enumerate(struct.iter_unpack(">I", b)):
+     c_file.write("0x{:08x}, ".format(word[0]))
++    extras += "0x{:08x}, ".format(word[0] ^ 0xFFFFFFFF)
+     if (i + 1) % (bytes_per_row // 4) == 0:
+-        c_file.write("\n")
++        extras += "\n"
++        c_file.write(extras)
++        extras = ""
+ 
+ c_file.write(
+     """\
+@@ -354,7 +359,7 @@ displayio_bitmap_t supervisor_terminal_font_bitmap = {{
+     .read_only = true
+ }};
+ """.format(
+-        len(all_characters) * tile_x, tile_y, bytes_per_row / 4
++        2 * len(all_characters) * tile_x, tile_y, bytes_per_row / 4 * 2
+     )
+ )
+ 
