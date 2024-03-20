@@ -10,6 +10,7 @@
 #   (3) Vorlesung "Stochastische Signale", Prof. Dr. Utschick, TU München, WS 23/24
 #   (4) Python uncertainties module
 #   (5) Bronstein / Semendjajew, Handbuch der Mathematik, Verlag Harri Deutsch 1981
+#   (6) https://de.wikipedia.org/wiki/Digamma-Funktion, https://de.wikipedia.org/wiki/Harmonische_Reihe
 
 import math as m
 
@@ -248,6 +249,27 @@ class ufloat(object):
         return ufloat(nomval, stddev)
     
 
+    def _psi(self):
+        '''psi(x) (or the Digamma function) is the logarithmic derivative of the Gamma 
+        function, defined as psi(x) = d/dx ln(gamma(x)) = gamma'(x) / gamma(x)  
+        Thus, it is also the derivative of the lgamma(x) function. 
+        psi(x) is also identical to H(x-1) - gamma (the Euler-Mascheroni constant), 
+        with H(x-1) being the (x-1)st partial sum of the harmonic series, which in turn 
+        can be approximated by using an asymptotic development with great precision (5). '''
+        x = self
+        return (m.log(x) + 1/(2*x) - 1/(12*x**2) + 1/(120*x**4) - 1/(252*x**6) + 1/(240*x**8) - 1/(132*x**10))
+        # TODO calculating it this way is not particularly efficient. 
+
+
+    def gamma(self):
+        '''gamma(x) is the generalized factorial function for real arguments.
+        The derivative is gamma'(x) = gamma(x) * psi(x). '''
+        nomval = m.gamma(self.nomval)
+        stddev = self.stddev * nomval * self._psi()
+        return ufloat(nomval, stddev)
+        # not that the gamma function played a big role in engineerial error propagation, but hey. 
+                
+
     def hypot(self, other):
         # 'hypot': [lambda x, y: x/math.hypot(x, y),
         #       lambda x, y: y/math.hypot(x, y)],
@@ -259,6 +281,15 @@ class ufloat(object):
         return ufloat(nomval, stddev)
                 
 
+    def lgamma(self):
+        '''lgamma(x) is the log of the generalized factorial function, gamma(x).
+        The derivative is lgamma'(x) = psi(x). '''
+        nomval = m.gamma(self.nomval)
+        stddev = self.stddev * self._psi()
+        return ufloat(nomval, stddev)
+        # not that the lgamma function played a big role in engineerial error propagation, but hey. 
+        
+        
     def log(self):
         if (self) <= 0:
             raise ValueError ("log(x): x <= 0")
