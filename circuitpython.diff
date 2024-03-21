@@ -1,37 +1,34 @@
 diff --git a/.gitignore b/.gitignore
-index 9cb1e9ea5e..bbf44ac5da 100644
+index 9cb1e9ea5e..a3776603c0 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -91,3 +91,7 @@ TAGS
+@@ -91,3 +91,6 @@ TAGS
  
  # Uncrustify formatting
  *.uncrustify
 +
 +# local stuff
-+**/compile.out 
-+
++**/compile.out
 diff --git a/ports/atmel-samd/Makefile b/ports/atmel-samd/Makefile
-index 92b9f1453a..2c0b7841bd 100644
+index 92b9f1453a..570329b2d1 100644
 --- a/ports/atmel-samd/Makefile
 +++ b/ports/atmel-samd/Makefile
-@@ -125,7 +125,11 @@ else
-   endif
- endif
+@@ -127,6 +127,10 @@ endif
  
--CFLAGS += $(INC) -Wall -Werror -std=gnu11 -nostdlib -fshort-enums $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) -Werror=missing-prototypes
-+CFLAGS += $(INC) -Wall -Werror -std=gnu11 -nostdlib -fshort-enums $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) -Werror=missing-prototypes 
-+
+ CFLAGS += $(INC) -Wall -Werror -std=gnu11 -nostdlib -fshort-enums $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) -Werror=missing-prototypes
+ 
 +ifneq ($(INTERNAL_LIBM_DBL),1)
 +CFLAGS += -Werror
 +endif
- 
++
  ifeq ($(CHIP_FAMILY), samd21)
  CFLAGS += \
+ 	-mthumb \
 diff --git a/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h b/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h
-index 0744fc3f92..c1ec863a1f 100644
+index 0744fc3f92..cbf1208178 100644
 --- a/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h
 +++ b/ports/atmel-samd/boards/feather_m4_express/mpconfigboard.h
-@@ -23,3 +23,63 @@
+@@ -23,3 +23,67 @@
  // USB is always used internally so skip the pin objects for it.
  #define IGNORE_PIN_PA24     1
  #define IGNORE_PIN_PA25     1
@@ -87,6 +84,10 @@ index 0744fc3f92..c1ec863a1f 100644
 +#endif
 +#define MICROPY_OPT_MATH_FACTORIAL (1)
 +
++#ifdef MICROPY_PY_BUILTINS_STR_UNICODE
++#undef MICROPY_PY_BUILTINS_STR_UNICODE
++#endif
++
 +
 +/* does not get resolved ...*/
 +// #define ULAB_NUMPY_HAS_LOG2             (0)
@@ -141,7 +142,7 @@ index 1e18fee5f8..70aa2a7817 100644
  # Number of USB endpoint pairs.
  USB_NUM_ENDPOINT_PAIRS = 8
 diff --git a/ports/raspberrypi/Makefile b/ports/raspberrypi/Makefile
-index 2eb81017b3..1b32c52063 100644
+index 2eb81017b3..eb3857afc8 100644
 --- a/ports/raspberrypi/Makefile
 +++ b/ports/raspberrypi/Makefile
 @@ -144,6 +144,11 @@ INC += \
@@ -187,7 +188,7 @@ index 2eb81017b3..1b32c52063 100644
 +ifeq ($(INTERNAL_LIBM_DBL),1)
 +SRC_SDK += \
 +    src/rp2_common/pico_double/double_math.c
-+endif			
++endif
  
  SRC_SDK := $(addprefix sdk/, $(SRC_SDK))
  $(patsubst %.c,$(BUILD)/%.o,$(SRC_SDK) $(SRC_CYW43)): CFLAGS += -Wno-missing-prototypes -Wno-undef -Wno-unused-function -Wno-nested-externs -Wno-strict-prototypes -Wno-double-promotion -Wno-sign-compare -Wno-unused-variable -Wno-strict-overflow -Ilib/cyw43-driver
@@ -405,8 +406,82 @@ index 4ddf30115d..3244b98d10 100644
  
      return (((mp_uint_t)(o)) & 3) == 2 && (((mp_uint_t)(o)) & 0xff800007) != 0x00000006;
  }
+diff --git a/py/unicode.c b/py/unicode.c
+index 5acaad3788..3f83dcddad 100644
+--- a/py/unicode.c
++++ b/py/unicode.c
+@@ -64,6 +64,18 @@ STATIC const uint8_t attr[] = {
+     AT_PR, AT_LX, AT_LX, AT_LX, AT_LX, AT_LX, AT_LX, AT_LO,
+     AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO,
+     AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO,
++    AT_LO, AT_LO, AT_LO, AT_PR, AT_PR, AT_PR, AT_PR, 0,
++	AT_SP, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR,
++    AT_PR, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR,
++    AT_DI, AT_DI, AT_DI, AT_DI, AT_DI, AT_DI, AT_DI, AT_DI,
++    AT_DI, AT_DI, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR,
++    AT_PR, AT_UX, AT_UX, AT_UX, AT_UX, AT_UX, AT_UX, AT_UP,
++    AT_UP, AT_UP, AT_UP, AT_UP, AT_UP, AT_UP, AT_UP, AT_UP,
++    AT_UP, AT_UP, AT_UP, AT_UP, AT_UP, AT_UP, AT_UP, AT_UP,
++    AT_UP, AT_UP, AT_UP, AT_PR, AT_PR, AT_PR, AT_PR, AT_PR,
++    AT_PR, AT_LX, AT_LX, AT_LX, AT_LX, AT_LX, AT_LX, AT_LO,
++    AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO,
++    AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO, AT_LO,
+     AT_LO, AT_LO, AT_LO, AT_PR, AT_PR, AT_PR, AT_PR, 0
+ };
+ 
+@@ -117,41 +129,41 @@ size_t utf8_charlen(const byte *str, size_t len) {
+ 
+ // Be aware: These unichar_is* functions are actually ASCII-only!
+ bool unichar_isspace(unichar c) {
+-    return c < 128 && (attr[c] & FL_SPACE) != 0;
++    return c < 224 && (attr[c] & FL_SPACE) != 0;
+ }
+ 
+ bool unichar_isalpha(unichar c) {
+-    return c < 128 && (attr[c] & FL_ALPHA) != 0;
++    return c < 224 && (attr[c] & FL_ALPHA) != 0;
+ }
+ 
+ /* unused
+ bool unichar_isprint(unichar c) {
+-    return c < 128 && (attr[c] & FL_PRINT) != 0;
++    return c < 224 && (attr[c] & FL_PRINT) != 0;
+ }
+ */
+ 
+ bool unichar_isdigit(unichar c) {
+-    return c < 128 && (attr[c] & FL_DIGIT) != 0;
++    return c < 224 && (attr[c] & FL_DIGIT) != 0;
+ }
+ 
+ bool unichar_isxdigit(unichar c) {
+-    return c < 128 && (attr[c] & FL_XDIGIT) != 0;
++    return c < 224 && (attr[c] & FL_XDIGIT) != 0;
+ }
+ 
+ bool unichar_isident(unichar c) {
+-    return c < 128 && ((attr[c] & (FL_ALPHA | FL_DIGIT)) != 0 || c == '_');
++    return c < 224 && ((attr[c] & (FL_ALPHA | FL_DIGIT)) != 0 || c == '_');
+ }
+ 
+ bool unichar_isalnum(unichar c) {
+-    return c < 128 && ((attr[c] & (FL_ALPHA | FL_DIGIT)) != 0);
++    return c < 224 && ((attr[c] & (FL_ALPHA | FL_DIGIT)) != 0);
+ }
+ 
+ bool unichar_isupper(unichar c) {
+-    return c < 128 && (attr[c] & FL_UPPER) != 0;
++    return c < 224 && (attr[c] & FL_UPPER) != 0;
+ }
+ 
+ bool unichar_islower(unichar c) {
+-    return c < 128 && (attr[c] & FL_LOWER) != 0;
++    return c < 224 && (attr[c] & FL_LOWER) != 0;
+ }
+ 
+ unichar unichar_tolower(unichar c) {
 diff --git a/shared-bindings/rgbmatrix/RGBMatrix.c b/shared-bindings/rgbmatrix/RGBMatrix.c
-index 4f47ef3814..b36b593514 100644
+index 4f47ef3814..fac638a31d 100644
 --- a/shared-bindings/rgbmatrix/RGBMatrix.c
 +++ b/shared-bindings/rgbmatrix/RGBMatrix.c
 @@ -390,7 +390,11 @@ STATIC void rgbmatrix_rgbmatrix_deinit_proto(mp_obj_t self_in) {
@@ -415,12 +490,49 @@ index 4f47ef3814..b36b593514 100644
  
 +#if MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_DOUBLE
 +STATIC double rgbmatrix_rgbmatrix_get_brightness_proto(mp_obj_t self_in) {
-+#else		
++#else
  STATIC float rgbmatrix_rgbmatrix_get_brightness_proto(mp_obj_t self_in) {
-+#endif		
++#endif
      return common_hal_rgbmatrix_rgbmatrix_get_paused(self_in) ? 0.0f : 1.0f;
  }
  
+diff --git a/shared-module/fontio/BuiltinFont.c b/shared-module/fontio/BuiltinFont.c
+index cb5b7f9cb1..3dc761eb78 100644
+--- a/shared-module/fontio/BuiltinFont.c
++++ b/shared-module/fontio/BuiltinFont.c
+@@ -43,7 +43,7 @@ mp_obj_t common_hal_fontio_builtinfont_get_bounding_box(const fontio_builtinfont
+ }
+ 
+ uint8_t fontio_builtinfont_get_glyph_index(const fontio_builtinfont_t *self, mp_uint_t codepoint) {
+-    if (codepoint >= 0x20 && codepoint <= 0x7e) {
++    if (codepoint >= 0x20 && codepoint <= 0xde) {
+         return codepoint - 0x20;
+     }
+     // Do a linear search of the mapping for unicode.
+@@ -53,7 +53,7 @@ uint8_t fontio_builtinfont_get_glyph_index(const fontio_builtinfont_t *self, mp_
+         unichar potential_c = utf8_get_char(j);
+         j = utf8_next_char(j);
+         if (codepoint == potential_c) {
+-            return 0x7f - 0x20 + k;
++            return 0xdf - 0x20 + k;
+         }
+         k++;
+     }
+diff --git a/shared-module/terminalio/Terminal.c b/shared-module/terminalio/Terminal.c
+index a19768a622..9866dfc4f4 100644
+--- a/shared-module/terminalio/Terminal.c
++++ b/shared-module/terminalio/Terminal.c
+@@ -98,8 +98,8 @@ size_t common_hal_terminalio_terminal_write(terminalio_terminal_obj_t *self, con
+             continue;
+         }
+         // Always handle ASCII.
+-        if (c < 128) {
+-            if (c >= 0x20 && c <= 0x7e) {
++        if (c < 224) {
++            if (c >= 0x20 && c <= 0xde) {
+                 uint8_t tile_index = fontio_builtinfont_get_glyph_index(self->font, c);
+                 common_hal_displayio_tilegrid_set_tile(self->scroll_area, self->cursor_x, self->cursor_y, tile_index);
+                 self->cursor_x++;
 diff --git a/tools/gen_display_resources.py b/tools/gen_display_resources.py
 index 350988bab0..6f4c9791b8 100644
 --- a/tools/gen_display_resources.py

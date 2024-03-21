@@ -233,6 +233,11 @@ def date(d=None):
         return None
     
 
+def inv(c):
+    # invert a single character by shifting it to the upper half of the character table
+    # ASCII 96 = 0x60
+    return chr(ord(c) + 96)
+
 
 # initialize display layout
 
@@ -289,13 +294,18 @@ display.root_group = root
 print("Hello Serial!")  # serial console
 tprint ("\r\nAdafruit CircuitPython {}".format(version))
 tprint ("\r\n{}".format(machine))
-# tprint ("\r\nFree Memory: {}".format(mem_free()))
+# uncomment to debug boot process
+#tprint ("\r\n")
+#with open ("/boot_out.txt", "r") as fp:
+#    for line in fp: 
+#        tprint ("\r" + line)
 tprint ("\r\n")
-tprint ("\r\n" + prompt + '_')
+tprint ("\r\n" + prompt + inv(' '))
+
 
 '''
 tprint("\r\n")
-for char in range (0x20, 0x1FF):
+for char in range (0x20, 0xDE):
     tprint ("{}".format(chr(char)))
     if char % 32 == 0:
         tprint("\r\n")
@@ -452,11 +462,11 @@ while True:
             # insert cursor only for display - we work on a copy of command
             line = ''.join(command)
             if cursor == len(line):
-                line = line + '_'
+                line = line + inv(' ')
             elif cursor == 0:
-                line = '_' + line[1:]
+                line = inv(line[0]) + line[1:]
             else:
-                line = line[:cursor] + '_' + line[cursor+1:]    # slicing is fun - last index not included. 
+                line = line[:cursor] + inv(line[cursor]) + line[cursor+1:]    # slicing is fun - last index not included. 
             tprint('\r' + prompt + line + ceol)     # print prompt, command, and delete until eol. 
         elif state == STATE_RELEASE:
             if key == KEY_SYM:
