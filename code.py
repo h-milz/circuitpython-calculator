@@ -12,11 +12,14 @@ import adafruit_imageload
 # from adafruit_bitmap_font import bitmap_font
 from adafruit_display_text import label
 from adafruit_pcf8523.pcf8523 import PCF8523
+import board
+import busio
+import sdcardio
+import storage
 import terminalio
 import displayio
 import fourwire
 import analogio
-import board
 import tsc2004
 from bbq10keyboard import BBQ10Keyboard, STATE_PRESS, STATE_RELEASE, STATE_LONG_PRESS
 import neopixel
@@ -44,9 +47,23 @@ displayio.release_displays()
 
 # Use Hardware SPI
 spi = board.SPI()
-display_bus = fourwire.FourWire(spi, chip_select=board.D9, command=board.D10)
+
+# initialize and mount sd card
+# TODO Does not mount: "no SD card"
+cs = board.D5
+'''
+try:
+    sdcard = sdcardio.SDCard(spi, cs)
+    vfs = storage.VfsFat(sdcard)
+    storage.mount(vfs, "/sd")
+    print 
+except Exception as e:
+    raise e
+    pass
+'''
 
 # initialize display
+display_bus = fourwire.FourWire(spi, chip_select=board.D9, command=board.D10)
 display_width = 320
 display_height = 240
 display = adafruit_ili9341.ILI9341(display_bus, width=display_width, height=display_height)
@@ -69,6 +86,7 @@ prompt = ps1
 command = []        # let's use a list here. Easier for insert and delete 
 cursor = 0
 mod_sym = 0
+historyfile = "/history.txt" 
 historylist = []
 historyptr = 0
 oldcommand = ""
@@ -76,7 +94,8 @@ ans = ""            # Casio-like ANS string
 in_compound_statement = False
 compound_statement = ""
 
-batpin = analogio.AnalogIn(board.A0)
+usbpin = analogio.AnalogIn(board.A2)
+batpin = analogio.AnalogIn(board.VOLTAGE_MONITOR)
 FULL = 2
 WARN = 1
 EMPTY = 0
@@ -102,12 +121,12 @@ def history(cmd, hlist):
     '''
     appends the last command to the historylist and writes it to the history file. 
     '''
-    if cmd == '':                                # if the cmd is empty, do nothing.  
+    if cmd == '':                        # if the cmd is empty, do nothing.  
         return hlist
     try:
         # appending works only when the USB cable is not attached. 
-        with open("/history.txt", "a") as file:
-            file.write("{}\n".format(cmd))
+        with open(historyfile, "a") as file:
+            file.write("{}\r\n".format(cmd))
             file.flush()
     except OSError as e:
         # for example if none is available. Maybe we should inform the user. 
@@ -291,6 +310,22 @@ display.root_group = root
 # print greeting and init prompt. 
 (sysname, nodename, release, version, machine) = uname()
 
+# open on-disk history file and feed it into the historylist
+try:
+    with open(historyfile, "r") as file:
+        historylist = [line.rstrip() for line in file] # remove line breaks
+        historylist = stifle(historylist, 100) 
+    # write back shortened list
+    with open(historyfile, "w") as file:
+        file.write('\n'.join(historylist))
+        file.flush()
+except OSError as e:
+    # we should never end up here, but ... 
+    tprint ("\r\n/history.txt: {}\r\n".format(e))
+    # pass
+
+
+# print greeting
 print("Hello Serial!")  # serial console
 tprint ("\r\nAdafruit CircuitPython {}".format(version))
 tprint ("\r\n{}".format(machine))
@@ -301,34 +336,6 @@ tprint ("\r\n{}".format(machine))
 #        tprint ("\r" + line)
 tprint ("\r\n")
 tprint ("\r\n" + prompt + inv(' '))
-
-
-'''
-tprint("\r\n")
-for char in range (0x20, 0xDE):
-    tprint ("{}".format(chr(char)))
-    if char % 32 == 0:
-        tprint("\r\n")
-
-while True:
-    time.sleep(1)
-    pass
-'''
-
-# open on-disk history file and feed it into the historylist
-try:
-    with open("/history.txt", "r") as file:
-        historylist = [line.rstrip() for line in file] # remove line breaks
-        historylist = stifle(historylist, 100) 
-    # write back shortened list
-    with open("/history.txt", "w") as file:
-        file.write('\n'.join(historylist))
-        file.flush()
-except OSError as e:
-    # we should never end up here, but ... 
-    print ("cannot read or write /history.txt: ", e)
-
-
 
 
 status_timeout = -1
@@ -364,13 +371,15 @@ while True:
             # print (" key {}, state {}".format(key, state))
             if key == KEY_UP:
                 # we'll go backward in the historylist until we reach the top.
-                if historyptr > -len(historylist):
-                    historyptr -= 1
-                # if up is pressed for the first name, copy the former command for later
-                if historyptr == -1:
-                    oldcommand = command[0:]     # we need a real copy. 
-                command = list(historylist[historyptr])
-                cursor = len(command)
+                lh = len(historylist)
+                if lh != 0:                 # make sure the list is not empty
+                    if historyptr > -lh:
+                        historyptr -= 1
+                    # if up is pressed for the first name, copy the former command for later
+                    if historyptr == -1:
+                        oldcommand = command[0:]     # we need a real copy. 
+                    command = list(historylist[historyptr])
+                    cursor = len(command)
                 # print ("key_up: ptr = {}, cursor = {}".format(historyptr, cursor))
                 # print ("        command: {}".format(command))
             elif key == KEY_DOWN:

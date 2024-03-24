@@ -10,10 +10,8 @@ from collections import namedtuple
 from uncertainty import ufloat as u
 from ufractions import frac as fr
 import sys
+import ulab.scipy.integrate as i
 
-def current_function_name():
-    frame = sys._getframe().f_back
-    return frame.f_code.co_name
 
 # create some immutable variables. 
 # we use m.pi and m.e etc. directly. 
