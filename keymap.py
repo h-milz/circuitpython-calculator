@@ -5,6 +5,7 @@ KEY_UP          = chr(1)
 KEY_DOWN        = chr(2)
 KEY_LEFT        = chr(3)
 KEY_RIGHT       = chr(4)
+KEY_ESC         = chr(6)
 KEY_BACKSPACE   = '\b'
 KEY_ENTER       = '\n'
 KEY_SYM         = chr(18)

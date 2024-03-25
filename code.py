@@ -27,6 +27,7 @@ import time
 from supervisor import runtime
 from keymap import *
 from umath import *        # all these wrapper functions
+from plot import plot
 
 runtime.autoreload = False           # otherwise the thing reboots then and again. 
 
@@ -403,6 +404,9 @@ while True:
                 if cursor < len(command):
                     cursor += 1
                 # print ("key_right: cursor: {}, len: {}".format(cursor, len(command)))
+            elif key == KEY_ESC:
+                # end of plotting
+                display.root_group = root
             elif key == KEY_SYM:
                 mod_sym = 1
                 # print ("setting mod_sym to ", mod_sym)
