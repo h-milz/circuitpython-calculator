@@ -27,7 +27,7 @@ import time
 from supervisor import runtime
 from keymap import *
 from umath import *        # all these wrapper functions
-from plot import plot
+# from plot import plot
 
 runtime.autoreload = False           # otherwise the thing reboots then and again. 
 

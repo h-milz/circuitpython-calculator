@@ -4,6 +4,9 @@
 
 # very simple plot function a la matplotlib. 
 
+# ATM, will not work. A 304x224 bitmap needs 68k of RAM, which is tight. 
+# -> needs a board with larger RAM or PSRAM. 
+
 # ulab.numpy should have everything so we won't need math. 
 # import math as m
 import ulab.numpy as np
@@ -59,7 +62,7 @@ def plot(f, xmin, xmax, ymin=None, ymax=None, steps=ximagesize, xsteps=8, ysteps
         ylog:           plot y logarithmically (default False)
      '''
         
-    if (!callable(f)):
+    if (not callable(f)):
         raise TypeError ("first argument must be a callable function")
 
     # plot x log if xlog is True

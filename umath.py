@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-
-
 import math as m
 import cmath as cm
 from collections import namedtuple
@@ -121,7 +119,7 @@ def atan(x):
 
 def atan2(x, y):		
     if isinstance (x, complex): 
-        raise NotImplementedError (f'function does not support type complex')  
+        raise TypeError (f'function does not support type complex')  
     else:
     	return m.atan2(x, y)
 
@@ -156,7 +154,7 @@ def cosh(x):
 
 def degrees(x):
     if isinstance (x, complex): 
-        raise NotImplementedError (f'function does not support type complex')  
+        raise TypeError (f'function does not support type complex')  
     else:
         return m.degrees(x)
 
@@ -164,14 +162,14 @@ deg = degrees
 
 def erf(x):
     if isinstance (x, complex): 
-        raise NotImplementedError (f'function does not support type complex')  
+        raise TypeError (f'function does not support type complex')  
     else:
         return m.erf(x)
 
 
 def erfc(x):
     if isinstance (x, complex): 
-        raise NotImplementedError (f'function does not support type complex')  
+        raise TypeError (f'function does not support type complex')  
     else:
         return m.erfc(x)
 
@@ -187,7 +185,7 @@ def exp(x):
 def expm1(x):
     if isinstance (x, complex): 
         (r, theta) = polar(x)
-        return complex(m.expm1(r) * m.cos(theta), m.exp,1(r) * m.sin(theta))
+        return complex(m.expm1(r) * m.cos(theta), m.expm1(r) * m.sin(theta))
     else:
         return m.expm1(x)
 
@@ -201,14 +199,14 @@ def fabs(x):
 
 def gamma(x):
     if isinstance (x, complex): 
-        raise NotImplementedError (f'function does not support type complex')  
+        raise TypeError (f'function does not support type complex')  
     else:
         return m.gamma(x)
 
 
 def lgamma(x):
     if isinstance (x, complex): 
-        raise NotImplementedError (f'function does not support type complex')  
+        raise TypeError (f'function does not support type complex')  
     else:
         return m.lgamma(x)
 
@@ -238,7 +236,7 @@ def log2(x):
 
 def radians(x):
     if isinstance (x, complex): 
-        raise NotImplementedError (f'function does not support type complex')  
+        raise TypeError (f'function does not support type complex')  
     else:
         return m.radians(x)
 
