@@ -1,3 +1,6 @@
+# put in CIRCUITPY as code.py and then Ctrl-D. 
+
+
 import math as m
 import random 
 import os 
