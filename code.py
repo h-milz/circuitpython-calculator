@@ -27,7 +27,50 @@ import time
 from supervisor import runtime
 from keymap import *
 from umath import *        # all these wrapper functions
-# from plot import plot
+import ulab.numpy as np
+from adafruit_displayio_layout.widgets.cartesian import Cartesian
+from math import ceil, floor
+
+# we need to tell teensy from Feathers... 
+(sysname, nodename, release, version, machine) = uname()
+if "Teensy" in machine: 
+    # A0 = board.A14  # ??? 
+    A1 = board.A1
+    A2 = board.A3
+    A3 = board.A2
+    A4 = board.A0
+    A5 = board.A6
+    D13 = board.D5
+    D12 = board.D6
+    D11 = board.D9
+    D10 = board.D10
+    D9 = board.D4
+    D6 = board.D3
+    D5 = board.D8
+    VOLTAGE_MONITOR = board.A7
+else: 
+    A0 = board.A0
+    A1 = board.A1
+    A2 = board.A2
+    A3 = board.A3
+    A4 = board.A4
+    A5 = board.A5
+    D13 = board.D13
+    D12 = board.D12
+    D11 = board.D11
+    D10 = board.D10
+    D9 = board.D9
+    D6 = board.D6
+    D5 = board.D5
+    VOLTAGE_MONITOR = board.VOLTAGE_MONITOR
+
+import microcontroller
+def freq(fr=None):
+    if fr is None:
+        tprint("\r\nclock: {} MHz\r\n".format(microcontroller.cpu.frequency / 1000000))
+    else:        
+        microcontroller.cpu.frequency = fr * 1000000
+    
 
 runtime.autoreload = False           # otherwise the thing reboots then and again. 
 
@@ -38,7 +81,7 @@ CYAN = (0, 255, 255)
 BLUE = (0, 0, 255)
 PURPLE = (180, 0, 255)
 OFF = (0, 0, 0)
-neopix_pin = board.D11
+neopix_pin = D11
 pixels = neopixel.NeoPixel(neopix_pin, 1, brightness=0.05)
 pixels[0] = OFF
 
@@ -49,28 +92,20 @@ displayio.release_displays()
 # Use Hardware SPI
 spi = board.SPI()
 
-# initialize and mount sd card
-# TODO Does not mount: "no SD card"
-cs = board.D5
-'''
-try:
-    sdcard = sdcardio.SDCard(spi, cs)
-    vfs = storage.VfsFat(sdcard)
-    storage.mount(vfs, "/sd")
-    print 
-except Exception as e:
-    raise e
-    pass
-'''
-
 # initialize display
-display_bus = fourwire.FourWire(spi, chip_select=board.D9, command=board.D10)
+display_bus = fourwire.FourWire(spi, chip_select=D9, command=D10)
 display_width = 320
 display_height = 240
 display = adafruit_ili9341.ILI9341(display_bus, width=display_width, height=display_height)
 
+# scan I2C Bus for devices
+i2c = busio.I2C(board.SCL, board.SDA)
+i2c.try_lock()
+i2cdevices = i2c.scan()
+i2c.unlock()
+
 # initialize i2c, keyboard, touch, and RTC
-i2c = board.I2C()
+# i2c = board.I2C()
 
 kbd = BBQ10Keyboard(i2c)
 # seems the kbd needs a short time to settle. 
@@ -78,7 +113,11 @@ time.sleep(0.1)
 kbd.backlight = 0.2
 # kbd.report_mods = True
 tsc = tsc2004.TSC2004(i2c)
-rtc = PCF8523(i2c)
+
+# initialize RTC only if it is connected. 
+if 0x68 in i2cdevices:
+    from adafruit_pcf8523.pcf8523 import PCF8523
+    rtc = PCF8523(i2c)
 
 ps1 = ">>> "     # this should be sys.ps1 but it seems not available. 
 ps2 = "... "
@@ -95,18 +134,20 @@ ans = ""            # Casio-like ANS string
 in_compound_statement = False
 compound_statement = ""
 
-usbpin = analogio.AnalogIn(board.A2)
-batpin = analogio.AnalogIn(board.VOLTAGE_MONITOR)
+usbpin = analogio.AnalogIn(A2)
+batpin = analogio.AnalogIn(VOLTAGE_MONITOR)
 FULL = 2
 WARN = 1
 EMPTY = 0
 batstat = FULL
 
+myfont = terminalio.FONT
 
 clear_display = '\033[2J'
 ceol = '\033[K'    # clear to end of line 
 move_cursor_left = '\033[1D'
 
+fun=lambda x: np.sin(x)   # x**2 - 2*x +2
 
 def stifle(lst, n):
     '''
@@ -241,6 +282,8 @@ def update_status(status):
 
 
 def date(d=None):
+    if 0x68 not in i2cdevices:
+        return None
     if d == None:   # get date
         t = rtc.datetime
         return f"{t.tm_year:04d}-{t.tm_mon:02d}-{t.tm_mday:02d} {t.tm_hour:02d}:{t.tm_min:02d}"
@@ -259,11 +302,80 @@ def inv(c):
     return chr(ord(c) + 96)
 
 
-# initialize display layout
+def plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100):
+    ''' Usage example:
+        f = lambda x: x**2 - 2*x -2
+        plot(f, xmin, xmax, ymin=None, ymax=None, steps=ximagesize, xsteps=10, ysteps=8, xlog=False, ylog=False)
+        
+        f:              callable function
+        xmin, xmax:     left / right x limits
+        ymin, ymax:     upper / lower y limits (image may be cropped)
+        xlog:           plot x logarithmically (default False)
+        ylog:           plot y logarithmically (default False)
+        steps:          number of data points
+     '''
+        
+    if (not callable(f)):
+        raise TypeError ("first argument must be a callable function")
 
-myfont = terminalio.FONT
+    # plot x log if xlog is True
+    x = np.linspace (xmin, xmax, steps) if xlog is False else np.logspace (xmin, xmax, steps)
+    # print ("x: {}".format(x))
+    
+    y = np.sqrt(x) # np.sin(x) # x**2 + 2*x -2 # f(x)
+    # print ("y: {}".format(y))
+    
+    # plot y log if ylog is True
+    y = np.log(y) if ylog is True else y 
+
+    ymin = np.min(y) if ymin is None else ymin
+    ymax = np.max(y) if ymax is None else ymax
+    
+    print ("xmin, xmax, ymin, ymax = {} {} {} {}".format(xmin, xmax, ymin, ymax))
+    ymin = floor(ymin)
+    ymax = ceil(ymax)
+    print ("xmin, xmax, ymin, ymax = {} {} {} {}".format(xmin, xmax, ymin, ymax))
+
+    # axis margins
+    xmargin = int(display.width * 0.1)
+    ymargin = int(display.height * 0.1)
+    
+    # alles int! :-(( 
+    
+    plane = Cartesian(
+        x = xmargin,                      # x position for the plane    top left = (0, 0)
+        y = 0,                            # y plane position
+        width = display.width - xmargin,  # display width
+        height = display.height - ymargin,                  # display height
+        xrange = (xmin, xmax),            # x range
+        yrange = (ymin, ymax),            # y range
+        axes_stroke = 1,
+        tick_label_font = myfont,
+        subticks = True,
+        # verbose = True,
+    )
+
+    plotgroup = displayio.Group()
+    plotgroup.append(plane)
+    display.root_group = plotgroup
+    
+    # here starts the function plotting proper
+    
+    try:
+        for i in range (steps):   # to prevent overflow
+            plane.add_plot_line(x[i], y[i])
+            # time.sleep(0.1)
+    except Exception as e:
+        display.root_group=root
+        tprint ("\r\nError: {}\r\n".format(e))    
+
+    return None
+    
+    
+    
+
+# initialize display layout
 # terminalio works only with the builtin font :-( 
-# myfont = bitmap_font.load_font("/fonts/myfont.bdf")
 
 root = displayio.Group()
 
@@ -307,9 +419,6 @@ status.anchored_position = (2 * sprite.width, 0)
 root.append(status)
 
 display.root_group = root
-
-# print greeting and init prompt. 
-(sysname, nodename, release, version, machine) = uname()
 
 # open on-disk history file and feed it into the historylist
 try:
@@ -407,6 +516,7 @@ while True:
             elif key == KEY_ESC:
                 # end of plotting
                 display.root_group = root
+                update_status(status)            
             elif key == KEY_SYM:
                 mod_sym = 1
                 # print ("setting mod_sym to ", mod_sym)
