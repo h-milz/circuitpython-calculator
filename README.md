@@ -9,6 +9,11 @@ Update 2024-03-24:
 
 * The image now contains numeric integration as `ulab.scipy.integrate`. 
 
+Update 2024-03-28:
+
+* the diff and the build script are gone. 
+* my complete CircuitPython fork is on https://github.com/h-milz/circuitpython 
+
 Add-ons: 
 
 ## Bitmaps
