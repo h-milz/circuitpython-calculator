@@ -305,15 +305,15 @@ def inv(c):
 def plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100):
     ''' Usage example:
         f = lambda x: x**2 - 2*x -2
-        plot(f, xmin, xmax, ymin=None, ymax=None, steps=ximagesize, xsteps=10, ysteps=8, xlog=False, ylog=False)
+        plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100)
         
         f:              callable function
         xmin, xmax:     left / right x limits
         ymin, ymax:     upper / lower y limits (image may be cropped)
         xlog:           plot x logarithmically (default False)
         ylog:           plot y logarithmically (default False)
-        steps:          number of data points
-     '''
+        steps:          number of data points (default 100) 
+    '''
         
     if (not callable(f)):
         raise TypeError ("first argument must be a callable function")
@@ -322,7 +322,7 @@ def plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100)
     x = np.linspace (xmin, xmax, steps) if xlog is False else np.logspace (xmin, xmax, steps)
     # print ("x: {}".format(x))
     
-    y = np.sqrt(x) # np.sin(x) # x**2 + 2*x -2 # f(x)
+    y = f(x)
     # print ("y: {}".format(y))
     
     # plot y log if ylog is True
