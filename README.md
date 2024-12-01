@@ -27,6 +27,11 @@ contains blinka images converted from the C source code.
 ## CIRCUITPY/Decimal
 contains some math on top of jepler-udecimal (https://github.com/jepler/Jepler_CircuitPython_udecimal). umath.py complements hyperbolic and some other functions, and cdmath.py, well, complex decimal math. Abandoned in favor of modifying Circuitpython mainly due to memory consumption but workable. Maybe useful for someone. 
 
+
+## LVGL+Micropython 
+The lvgl-micropython patch adds FP64 and numerical integration to the [lvgl_micropython fork](https://github.com/lvgl-micropython/lvgl_micropython). It is a direct spinoff of my earlier patch for Circuitpython 9.x. 
+
+
 ## Images
 The images directory contains the images that were originally in the Adafruit Playgound article. It seems I cannot upload them there any more. 
 
