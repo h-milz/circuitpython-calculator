@@ -27,5 +27,28 @@ contains blinka images converted from the C source code.
 ## CIRCUITPY/Decimal
 contains some math on top of jepler-udecimal (https://github.com/jepler/Jepler_CircuitPython_udecimal). umath.py complements hyperbolic and some other functions, and cdmath.py, well, complex decimal math. Abandoned in favor of modifying Circuitpython mainly due to memory consumption but workable. Maybe useful for someone. 
 
+## Images
+The images directory contains the images that were originally in the Adafruit Playgound article. It seems I cannot upload them there any more. 
+
+![A couple of sample commands.](images/IMG_20240321_140458_s.jpg)
+
+Fig. 1 A couple of sample commands. 
+
+![A couple of sample commands.](images/IMG_20240321_111032_s.jpg)
+
+Fig. 2 View from the backside. 
+
+![A couple of sample commands.](images/IMG_20240323_194227_s.jpg)
+
+Fig. 3 View from the backside with the Feather M4 removed. You can see the resistors for the voltage divider. 
+
+![A couple of sample commands.](images/IMG_20240321_145411_s.jpg)
+
+Fig. 4 Some commands enlarged.
+
+![A couple of sample commands.](images/IMG_20240321_163039_s.jpg)
+
+Fig. 5 The battery charge current hack. 
+
 
 
