@@ -20,7 +20,7 @@ print ("CPU clock: {} MHz".format(microcontroller.cpu.frequency / 1000000))
 # Integer Benchmark
 # calculate 1000! n times. 
 
-n = 80
+n = 100000
 print ("Integer: elapsed time = ", end="")
 start = time.monotonic()
 
@@ -28,7 +28,9 @@ for i in range (n):
     res = 1
     for j in range (2, 1001):
         res *= j
-
+    print (".", end="")
+    
+    
 end = time.monotonic()
 elapsed = end - start
 print ("{:.2f} s".format(elapsed))

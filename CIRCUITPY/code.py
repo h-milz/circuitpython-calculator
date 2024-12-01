@@ -6,12 +6,10 @@
 from os import uname
 from gc import mem_free, collect
 from re import sub
+from supervisor import runtime
 # import sys
 import adafruit_ili9341
 import adafruit_imageload
-# from adafruit_bitmap_font import bitmap_font
-from adafruit_display_text import label
-from adafruit_pcf8523.pcf8523 import PCF8523
 import board
 import busio
 import sdcardio
@@ -24,14 +22,18 @@ import tsc2004
 from bbq10keyboard import BBQ10Keyboard, STATE_PRESS, STATE_RELEASE, STATE_LONG_PRESS
 import neopixel
 import time
-from supervisor import runtime
+# our keyboard mapping 
 from keymap import *
+# math functions wrapper
 from umath import *        # all these wrapper functions
+# for plotting: 
 import ulab.numpy as np
-from adafruit_displayio_layout.widgets.cartesian import Cartesian
-from math import ceil, floor
+from adafruit_display_text import label
+import bitmaptools as bt
 
-# we need to tell teensy from Feathers... 
+dsp = displayio   # convenience
+
+# we need to tell Teensy + Adapter from "real" Feathers... 
 (sysname, nodename, release, version, machine) = uname()
 if "Teensy" in machine: 
     # A0 = board.A14  # ??? 
@@ -64,6 +66,9 @@ else:
     D5 = board.D5
     VOLTAGE_MONITOR = board.VOLTAGE_MONITOR
 
+
+# playing with Teensy... 
+# Todo: wrap in keyboard polling loop. 
 import microcontroller
 def freq(fr=None):
     if fr is None:
@@ -118,11 +123,12 @@ tsc = tsc2004.TSC2004(i2c)
 if 0x68 in i2cdevices:
     from adafruit_pcf8523.pcf8523 import PCF8523
     rtc = PCF8523(i2c)
+    # TODO set system RTC and unload PCF8523. 
+
 
 ps1 = ">>> "     # this should be sys.ps1 but it seems not available. 
 ps2 = "... "
 prompt = ps1
-# command = ""
 command = []        # let's use a list here. Easier for insert and delete 
 cursor = 0
 mod_sym = 0
@@ -143,11 +149,11 @@ batstat = FULL
 
 myfont = terminalio.FONT
 
+# useful terminalio escape sequences
 clear_display = '\033[2J'
 ceol = '\033[K'    # clear to end of line 
 move_cursor_left = '\033[1D'
 
-fun=lambda x: np.sin(x)   # x**2 - 2*x +2
 
 def stifle(lst, n):
     '''
@@ -230,6 +236,7 @@ def process(cmd):
     print does not print to the screen.  
     '''
     # TODO exec and eval should only allow a specific set of keywords. 
+    # TODO if Teensy, switch to 600 MHz
 
     try:
         if is_compound_statement(cmd):
@@ -302,10 +309,24 @@ def inv(c):
     return chr(ord(c) + 96)
 
 
-def plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100):
+palette = displayio.Palette(8)
+palette[0] = 0x000000 # black / background
+palette[1] = 0xFF0000 # red
+palette[2] = 0x00FF00 # green
+palette[3] = 0x0000FF # blue
+palette[4] = 0xFFFF00 # yellow
+palette[5] = 0x00FFFF # cyan
+palette[6] = 0xFF00FF # purple
+palette[7] = 0xFFFFFF # white
+fontcolor = palette[7]
+bgcolor = palette[0]
+
+f = lambda x: x**2
+
+def plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100, grid=False, xticks=6, yticks=4):
     ''' Usage example:
         f = lambda x: x**2 - 2*x -2
-        plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100)
+        plot(f,-3, 3, grid=True)
         
         f:              callable function
         xmin, xmax:     left / right x limits
@@ -313,6 +334,9 @@ def plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100)
         xlog:           plot x logarithmically (default False)
         ylog:           plot y logarithmically (default False)
         steps:          number of data points (default 100) 
+        grid:           coordinate grid (default False)
+        xticks:         number of x ticks (default 6 for linear)
+        yticks:         number of y ticks (default 4 for linear)
     '''
         
     if (not callable(f)):
@@ -332,38 +356,76 @@ def plot(f, xmin, xmax, ymin=None, ymax=None, xlog=False, ylog=False, steps=100)
     ymax = np.max(y) if ymax is None else ymax
     
     print ("xmin, xmax, ymin, ymax = {} {} {} {}".format(xmin, xmax, ymin, ymax))
-    ymin = floor(ymin)
-    ymax = ceil(ymax)
-    print ("xmin, xmax, ymin, ymax = {} {} {} {}".format(xmin, xmax, ymin, ymax))
 
-    # axis margins
-    xmargin = int(display.width * 0.1)
-    ymargin = int(display.height * 0.1)
-    
-    # alles int! :-(( 
-    
-    plane = Cartesian(
-        x = xmargin,                      # x position for the plane    top left = (0, 0)
-        y = 0,                            # y plane position
-        width = display.width - xmargin,  # display width
-        height = display.height - ymargin,                  # display height
-        xrange = (xmin, xmax),            # x range
-        yrange = (ymin, ymax),            # y range
-        axes_stroke = 1,
-        tick_label_font = myfont,
-        subticks = True,
-        # verbose = True,
-    )
+    # we could have used adafruit_displayio_layout.widgets.cartesian
+    # but it's all integer :-( 
 
     plotgroup = displayio.Group()
-    plotgroup.append(plane)
+
+    # panel layout
+    font = terminalio.FONT
+    fontx, fonty = font.get_bounding_box()
+    axismargin = fonty + 2
+    bmpw = display.width - axismargin        # leave 2 pixels extra
+    bmph = display.height - axismargin 
+    xchars = bmpw // fontx # max 304//6 = 50 characters
+    ychars = bmph // fontx # max 224//6 = 37 characters
+
+    # print(f'fontx {fontx} fonty {fonty} axism {axismargin} bmpw {bmpw} bmph {bmph} xchars {xchars} ychars {ychars}')
+    
+    bmp = displayio.Bitmap(bmpw, bmph, 8)
+    bmp.fill(3)
+    plotbox = displayio.TileGrid(bmp, 
+                                 x = axismargin+1, 
+                                 y = 0, 
+                                 pixel_shader = palette,
+                                )
+    plotgroup.append(plotbox)
+
+    # mind we're 0 based! 
+    # draw x axis
+    x1 = 2
+    x2 = bmpw-1
+    y1 = y2 = bmph-3
+    bt.draw_line(bmp, x1, y1, x2, y2, 7) 
+    # x ticks
+    for i in range(xticks):
+        xt1 = xt2 = round(x1 + bmpw * i / (xticks-1))
+        yt1 = bmph-1
+        yt2 = 0 if grid is True else bmph-3
+        bt.draw_line(bmp, xt1, yt1, xt2, yt2, 7)
+        # axis labeling:
+        # one label per tick, centered at xi, axismargin/2, 3 sign. digits. 
+        # determine tick positions automatically, pick "round" decimals like 0.1,1,10, and possibly halves. 
+
+    # draw y axis
+    x1 = x2 = 2
+    y1 = bmph-2
+    y2 = 0
+    bt.draw_line(bmp, x1, y1, x2, y2, 7) 
+    # x ticks
+    for i in range(yticks):
+        xt1 = 0 
+        xt2 = bmpw-1 if grid is True else 2
+        yt1 = yt2 = round(y1 - 1 - bmph * i / (yticks-1))
+        bt.draw_line(bmp, xt1, yt1, xt2, yt2, 7)
+
+
+
+
+
+
     display.root_group = plotgroup
     
     # here starts the function plotting proper
     
     try:
         for i in range (steps):   # to prevent overflow
-            plane.add_plot_line(x[i], y[i])
+            pass
+
+
+
+            # plane.add_plot_line(x[i], y[i])
             # time.sleep(0.1)
     except Exception as e:
         display.root_group=root

@@ -342,7 +342,7 @@ def tanh(x):
     elif isinstance (x, complex): 
         # https://de.wikipedia.org/wiki/Tangens_hyperbolicus_und_Kotangens_hyperbolicus#Numerische_Berechnung
         # see also: Bronstein, Taschenbuch der Mathematik, 1979, p.567
-        return sinh(x) / cosh(x)
+        return cm.sinh(x) / cm.cosh(x)
     else:               # argument is type real, i.e. int, float
         return m.tanh(x)
 
